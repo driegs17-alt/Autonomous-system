@@ -1,28 +1,4 @@
-/*
-  UNDERCURRENT
-  An autonomous generative drawing system in p5.js.
 
-  Every run, the sketch rolls a new "world": a seed, a palette, a field scale,
-  a twist amount and a drawing mode. Then about 1,000 agents drift across the
-  page, following an invisible current made with Perlin noise.
-
-  The system draws on its own, but you can disturb the water:
-  your cursor is a whirlpool the current bends around, and dragging pours
-  new ink into the stream. Leave it alone and it finishes and signs itself.
-
-  random() -> makes the jumpy, one-time DECISIONS (which palette, which mode,
-              where an agent is born, how long it lives, paper grain).
-  noise()  -> makes the smooth, continuous BEHAVIOUR (which way agents flow,
-              which colour region they belong to, how thick their line is).
-
-  Controls
-    move mouse        whirlpool: the current swirls around your cursor
-    click / N         new drawing (new seed)
-    click + drag      pour ink: agents spill out from the cursor
-    G                 switch between flow and grid mode, live
-    R                 replay the same seed
-    S                 save the canvas as a PNG
-    SPACE             pause / resume
 */
 
 // ---------- CONFIG ----------
@@ -207,9 +183,7 @@ class Particle {
   }
 }
 
-// ---------- POUR: dragging moves agents to the cursor ----------
-// Instead of adding new agents (which would slow the sketch down over time),
-// pouring recycles existing ones and drops them in a small splash at the cursor.
+
 function pourInk() {
   const x = constrain(mouseX, MARGIN, W - MARGIN);
   const y = constrain(mouseY, MARGIN, H - MARGIN);
@@ -266,7 +240,6 @@ function mouseReleased() {
   press = null;
 }
 
-// A press counts as a drag once the mouse moves more than 6 px or is held for 250 ms.
 function isDragging() {
   if (!press) return false;
   return dist(mouseX, mouseY, press.x, press.y) > 6 || millis() - press.time > 250;
