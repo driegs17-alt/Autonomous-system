@@ -3,23 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Undercurrent — generative p5.js</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Undercurrent — an autonomous drawing system</title>
+  <meta name="description" content="A generative p5.js artwork: a thousand agents ride a Perlin-noise current. Stir it with your mouse.">
+  <link rel="stylesheet" href="css/style.css">
   <script src="https://cdn.jsdelivr.net/npm/p5@1.11.1/lib/p5.min.js"></script>
 </head>
 <body>
   <main>
-    <div id="stage"></div>
-    <p class="controls">
-      <span><kbd>move</kbd> whirlpool</span>
-      <span><kbd>drag</kbd> pour ink</span>
-      <span><kbd>click</kbd> new drawing</span>
-      <span><kbd>G</kbd> flow / grid</span>
-      <span><kbd>R</kbd> replay seed</span>
-      <span><kbd>S</kbd> save PNG</span>
-      <span><kbd>space</kbd> pause</span>
-    </p>
+    <figure class="piece">
+      <div id="stage"></div>
+      <figcaption>
+        <p class="title"><strong>Undercurrent</strong> <span id="meta"></span></p>
+        <ul class="controls">
+          <li><kbd>move</kbd> stir</li>
+          <li><kbd>drag</kbd> pour</li>
+          <li><kbd>click</kbd> new</li>
+          <li><kbd>G</kbd> grid</li>
+          <li><kbd>R</kbd> replay</li>
+          <li><kbd>S</kbd> save</li>
+          <li><kbd>space</kbd> pause</li>
+        </ul>
+      </figcaption>
+    </figure>
   </main>
-  <script src="sketch.js"></script>
+
+  <script src="js/config.js"></script>
+  <script src="js/agent.js"></script>
+  <script src="js/sketch.js"></script>
 </body>
 </html>

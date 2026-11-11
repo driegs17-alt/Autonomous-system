@@ -1,0 +1,99 @@
+/* Undercurrent — gallery presentation */
+
+:root {
+  --wall: #dcd8d0;
+  --text: #2a2826;
+  --muted: #6b665f;
+  --rule: #a8a297;
+  /* The canvas is sized by height so the whole print is always visible. */
+  --piece-h: min(calc(100vh - 150px), calc((100vw - 48px) * 1.25));
+  --piece-w: calc(var(--piece-h) * 0.8);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--wall);
+  color: var(--text);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.piece {
+  margin: 0;
+  width: var(--piece-w);
+}
+
+/* p5 sets an inline size on the canvas; scale it to fit the screen.
+   p5 maps the mouse through the scaling, so interaction still lines up. */
+#stage canvas {
+  display: block;
+  width: var(--piece-w) !important;
+  height: var(--piece-h) !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.08),
+    0 24px 48px -12px rgba(0, 0, 0, 0.28);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+figcaption {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.title {
+  margin: 0;
+}
+
+.title strong {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-right: 10px;
+}
+
+#meta {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+}
+
+kbd {
+  font-family: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  margin-right: 5px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--text);
+}
