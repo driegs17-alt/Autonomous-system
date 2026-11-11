@@ -2,7 +2,9 @@
 
 **3-5 Autonomous Systems** · generative artwork in p5.js
 
-Undercurrent is a drawing that makes itself. Each time it runs, the sketch sets up a new "world" of rules. Then about 1,000 agents drift across the page, following an invisible current made with Perlin noise. Nobody steers them. The drawing builds up layer by layer and stops on its own after about 15 seconds. When it stops, it prints a label at the bottom, like a numbered print.
+Undercurrent is a drawing that makes itself. Each time it runs, the sketch sets up a new "world" of rules. Then about 1,000 agents drift across the page, following an invisible current made with Perlin noise. The drawing builds up layer by layer on its own.
+
+You can disturb the water. Your cursor is a whirlpool that the current swirls around, and dragging pours new ink from the cursor. Leave it alone and it finishes itself: once the base drawing is done (about 15 seconds) and the mouse has been still for about 4 seconds, it prints a label at the bottom, like a numbered print. Move the mouse again to wake it back up.
 
 Every result is different, but they all come from the same rules, so they read as one series.
 
@@ -27,8 +29,11 @@ To use the p5.js Web Editor instead, paste `sketch.js` into the editor's `sketch
 
 | Input | Action |
 | --- | --- |
+| Move the mouse | **Whirlpool:** agents near the cursor swirl around it. It pulls harder when you move faster. |
+| Click and drag | **Pour ink:** agents spill out of the cursor and flow off with the current |
 | Click (or `N`) | New drawing with a new seed |
-| `R` | Replay the same seed. The same rules give the same drawing. |
+| `G` | Switch between flow and grid mode while it draws |
+| `R` | Replay the same seed. Without mouse input, the same rules give the same drawing. |
 | `S` | Save the canvas as `undercurrent-<seed>.png` |
 | `Space` | Pause / resume |
 
@@ -41,7 +46,8 @@ To use the p5.js Web Editor instead, paste `sketch.js` into the editor's `sketch
 3. **Field scale:** how zoomed-in the current is (wide, slow swells or tight eddies).
 4. **Twist:** how far the current can turn.
 5. **Mode:** `flow`, with smooth curves, 70% of the time, or `grid`, which snaps directions to 45° steps, 30% of the time.
-6. **Population:** 700 to 1,200 agents.
+6. **Spin:** whether the whirlpool turns clockwise or counter-clockwise.
+7. **Population:** 700 to 1,200 agents.
 
 **While it draws, `noise()` decides these continuously:**
 
@@ -49,8 +55,11 @@ To use the p5.js Web Editor instead, paste `sketch.js` into the editor's `sketch
 - **Colour:** each agent's ink comes from a second noise layer, so neighbouring agents share colours and form regions.
 - **Line weight:** a third noise layer makes thick and thin areas instead of random speckle.
 - **Time:** the current slowly changes as the drawing runs, so early strokes and late strokes differ slightly.
+- **Whirlpool size:** the radius around the cursor grows and shrinks smoothly over time.
 
-**Each agent's lifecycle:** an agent is born at a random spot, lives for a random number of frames, and is reborn somewhere new when it dies or leaves the margin.
+**Each agent's lifecycle:** an agent is born at a random spot, lives for a random number of frames, and is reborn somewhere new when it dies or leaves the margin. Pouring ink reuses existing agents instead of adding new ones, so the sketch never slows down.
+
+**The whirlpool:** within the whirlpool's radius, each agent blends its noise direction with a direction that circles the cursor. The pull is strongest at the centre and fades out to the edge.
 
 ## Why random() *and* noise()?
 
@@ -62,7 +71,8 @@ To use the p5.js Web Editor instead, paste `sketch.js` into the editor's `sketch
 - [x] `noise()` and `random()` make decisions about position, size (line weight), colour, shape (mode) and movement
 - [x] Every run is different but looks like the same piece (a seeded rule set)
 - [x] Array of objects (`particles[]` of `Particle`) and loops
-- [x] Mouse interaction (`mousePressed()` makes a new drawing) and keyboard interaction (`keyPressed()` saves, replays and pauses)
+- [x] Mouse interaction: `mousePressed()` / `mouseReleased()` start a new drawing on a click or pour ink on a drag, and the whirlpool follows the cursor
+- [x] Keyboard interaction: `keyPressed()` saves, switches mode, replays and pauses
 - [x] `saveCanvas()` export
 
 ## Files
@@ -80,5 +90,6 @@ images/      example outputs
 - Patt Vira, *Perlin Noise* series (course resource): the flow-field idea of turning a noise value into an angle
 - Daniel Shiffman, *The Coding Train*, "Perlin Noise Flow Field" coding challenge: particles following a noise field
 - Tyler Hobbs, ["Flow Fields"](https://www.tylerxhobbs.com/words/flow-fields): angle quantising (the `grid` mode idea) and composition with flow fields
+- p5.js reference for `atan2()`, `lerp()` and `dist()`: the whirlpool steering
 
 The code in this repo was written for this project. The references above are where the techniques came from.

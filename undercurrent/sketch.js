@@ -4,8 +4,11 @@
 
   Every run, the sketch rolls a new "world": a seed, a palette, a field scale,
   a twist amount and a drawing mode. Then about 1,000 agents drift across the
-  page, following an invisible current made with Perlin noise. Nobody steers them.
-  The drawing builds up on its own and stops when it is finished.
+  page, following an invisible current made with Perlin noise.
+
+  The system draws on its own, but you can disturb the water:
+  your cursor is a whirlpool the current bends around, and dragging pours
+  new ink into the stream. Leave it alone and it finishes and signs itself.
 
   random() -> makes the jumpy, one-time DECISIONS (which palette, which mode,
               where an agent is born, how long it lives, paper grain).
@@ -13,24 +16,31 @@
               which colour region they belong to, how thick their line is).
 
   Controls
-    click / N   new drawing (new seed)
-    R           replay the same seed (the same rules give the same drawing)
-    S           save the canvas as a PNG
-    SPACE       pause / resume
+    move mouse        whirlpool: the current swirls around your cursor
+    click / N         new drawing (new seed)
+    click + drag      pour ink: agents spill out from the cursor
+    G                 switch between flow and grid mode, live
+    R                 replay the same seed
+    S                 save the canvas as a PNG
+    SPACE             pause / resume
 */
 
 // ---------- CONFIG ----------
 const W = 800;              // canvas width
 const H = 1000;             // canvas height (portrait, like a print)
-const MARGIN = 70;          // white border around the drawing
-const DURATION = 900;       // frames until the drawing is finished (~15 s)
+const MARGIN = 70;          // border around the drawing
+const DURATION = 900;       // minimum frames before the piece can finish (~15 s)
+const IDLE_LIMIT = 240;     // ...and it finishes after this many frames without mouse input (~4 s)
+
+const VORTEX_RADIUS = 170;  // how far the whirlpool reaches
+const POUR_RATE = 10;       // agents poured per frame while dragging
 
 // Each palette: a background, a flag for dark backgrounds, then the inks.
 const PALETTES = [
-  { name: 'Tide',        bg: '#F2EDE4', inks: ['#0B3954', '#087E8B', '#9CC5D8', '#FF5A5F'] },
+  { name: 'Tide',        bg: '#F2EDE4',             inks: ['#0B3954', '#087E8B', '#9CC5D8', '#FF5A5F'] },
   { name: 'Ember',       bg: '#17161A', dark: true, inks: ['#F4A261', '#E76F51', '#E9C46A', '#FAF3E0'] },
-  { name: 'Moss',        bg: '#EDEFE4', inks: ['#2D4739', '#6B8F71', '#C9A227', '#1E1E1E'] },
-  { name: 'Ink',         bg: '#F5F3EE', inks: ['#111111', '#3A3A3A', '#8C8C8C', '#D7263D'] },
+  { name: 'Moss',        bg: '#EDEFE4',             inks: ['#2D4739', '#6B8F71', '#C9A227', '#1E1E1E'] },
+  { name: 'Ink',         bg: '#F5F3EE',             inks: ['#111111', '#3A3A3A', '#8C8C8C', '#D7263D'] },
   { name: 'Night Bloom', bg: '#0E1428', dark: true, inks: ['#7B9E89', '#F95738', '#EE964B', '#F4D35E'] }
 ];
 
@@ -38,6 +48,8 @@ const PALETTES = [
 let world;                  // the rules for the current drawing
 let particles = [];         // array of agent objects
 let paused = false;
+let pourIndex = 0;          // which agent gets poured next
+let press = null;           // where and when the mouse went down (click vs drag)
 
 // ---------- SETUP ----------
 function setup() {
@@ -48,8 +60,19 @@ function setup() {
 
 // ---------- DRAW ----------
 function draw() {
-  // Let the current slowly change over time, so early and late strokes differ.
-  world.z += 0.0015;
+  world.z += 0.0015;        // the current slowly changes over time
+
+  const active = mouseOnCanvas() && (mouseIsPressed || mouseX !== pmouseX || mouseY !== pmouseY);
+  world.idle = active ? 0 : world.idle + 1;
+
+  // How hard the whirlpool pulls: stronger when the mouse moves fast.
+  const mouseSpeed = dist(mouseX, mouseY, pmouseX, pmouseY);
+  world.vortex = mouseOnCanvas() ? constrain(0.35 + mouseSpeed / 25, 0.35, 1) : 0;
+
+  // The whirlpool's size breathes smoothly over time, driven by noise().
+  world.radius = VORTEX_RADIUS * map(noise(frameCount * 0.01, 300), 0.25, 0.75, 0.6, 1.3, true);
+
+  if (mouseIsPressed && isDragging()) pourInk();
 
   for (const p of particles) {
     p.update();
@@ -57,14 +80,16 @@ function draw() {
   }
 
   world.frame++;
-  if (world.frame >= DURATION) {
-    drawLabel();            // sign the finished piece
+
+  // Finish once the base drawing is done AND nobody is playing with it.
+  if (world.frame >= DURATION && world.idle >= IDLE_LIMIT && !world.signed) {
+    drawLabel();
+    world.signed = true;
     noLoop();
   }
 }
 
 // ---------- WORLD: the rules for one drawing ----------
-// Every call makes a different world. random() makes each decision once.
 function newWorld(seed) {
   // Math.random() is used for the seed itself; after randomSeed(), p5's
   // random() is deterministic, so it would produce the same "new" seed sequence.
@@ -81,9 +106,14 @@ function newWorld(seed) {
     colorScale: random(0.0015, 0.004),              // size of colour regions
     turns: random(1.5, 3.5),                        // how much the current twists
     mode: random() < 0.7 ? 'flow' : 'grid',         // smooth curves or 45-degree steps
+    spin: random() < 0.5 ? 1 : -1,                  // whirlpool turns clockwise or not
     count: floor(random(700, 1200)),                // number of agents
     z: 0,
-    frame: 0
+    frame: 0,
+    idle: 0,
+    vortex: 0,
+    radius: VORTEX_RADIUS,
+    signed: false
   };
 
   // Pre-build translucent ink colours so layers build up density.
@@ -112,10 +142,10 @@ class Particle {
     this.reset();
   }
 
-  // Rebirth: a random place, a random lifespan, and a colour taken from noise.
-  reset() {
-    this.x = random(MARGIN, W - MARGIN);
-    this.y = random(MARGIN, H - MARGIN);
+  // Rebirth: a random place (or a given one), a random lifespan, a colour from noise.
+  reset(x, y) {
+    this.x = x === undefined ? random(MARGIN, W - MARGIN) : x;
+    this.y = y === undefined ? random(MARGIN, H - MARGIN) : y;
     this.px = this.x;
     this.py = this.y;
     this.life = random(60, 320);
@@ -142,10 +172,25 @@ class Particle {
       angle = round(angle / QUARTER_PI) * QUARTER_PI;
     }
 
+    let vx = cos(angle);
+    let vy = sin(angle);
+
+    // The whirlpool: near the cursor, blend the current with a swirl around it.
+    if (world.vortex > 0) {
+      const d = dist(this.x, this.y, mouseX, mouseY);
+      if (d < world.radius && d > 1) {
+        const pull = pow(1 - d / world.radius, 2) * world.vortex;    // strongest at the centre
+        const toMouse = atan2(mouseY - this.y, mouseX - this.x);
+        const swirl = toMouse + world.spin * HALF_PI * 0.8;          // mostly around, a little inward
+        vx = lerp(vx, cos(swirl), pull);
+        vy = lerp(vy, sin(swirl), pull);
+      }
+    }
+
     this.px = this.x;
     this.py = this.y;
-    this.x += cos(angle) * this.speed;
-    this.y += sin(angle) * this.speed;
+    this.x += vx * this.speed;
+    this.y += vy * this.speed;
     this.life--;
     this.fresh = false;
 
@@ -162,22 +207,33 @@ class Particle {
   }
 }
 
+// ---------- POUR: dragging moves agents to the cursor ----------
+// Instead of adding new agents (which would slow the sketch down over time),
+// pouring recycles existing ones and drops them in a small splash at the cursor.
+function pourInk() {
+  const x = constrain(mouseX, MARGIN, W - MARGIN);
+  const y = constrain(mouseY, MARGIN, H - MARGIN);
+  for (let i = 0; i < POUR_RATE; i++) {
+    const p = particles[pourIndex];
+    p.reset(x + random(-12, 12), y + random(-12, 12));
+    pourIndex = (pourIndex + 1) % particles.length;
+  }
+}
+
 // ---------- TEXTURE: paper grain ----------
 // The grain uses random() on purpose: grain should be jumpy and uneven, unlike the current.
 function drawGrain() {
-  const dark = world.palette.dark;
   strokeWeight(1);
   for (let i = 0; i < (W * H) / 30; i++) {
-    stroke(dark ? 255 : 0, random(4, 14));
+    stroke(world.palette.dark ? 255 : 0, random(4, 14));
     point(random(W), random(H));
   }
 }
 
 // ---------- LABEL: signs the print once it is finished ----------
 function drawLabel() {
-  const dark = world.palette.dark;
   noStroke();
-  fill(dark ? 235 : 30, 200);
+  fill(world.palette.dark ? 235 : 30, 200);
   textFont('Helvetica');
   textSize(11);
   textAlign(LEFT, BASELINE);
@@ -188,11 +244,32 @@ function drawLabel() {
 }
 
 // ---------- INTERACTION ----------
+function mouseOnCanvas() {
+  return mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height;
+}
+
+// Moving the mouse wakes a finished or idle drawing back up.
+function mouseMoved() {
+  if (mouseOnCanvas() && !paused && !isLooping()) loop();
+}
+
+// mousePressed() remembers where the press started. If the mouse comes back up
+// quickly without moving, it was a click (new drawing); otherwise it was a drag (pour).
 function mousePressed() {
-  // Only react to clicks on the canvas, not elsewhere on the page.
-  if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
-    newWorld();
-  }
+  if (!mouseOnCanvas()) return;
+  press = { x: mouseX, y: mouseY, time: millis() };
+  if (!paused && !isLooping()) loop();
+}
+
+function mouseReleased() {
+  if (press && !isDragging()) newWorld();
+  press = null;
+}
+
+// A press counts as a drag once the mouse moves more than 6 px or is held for 250 ms.
+function isDragging() {
+  if (!press) return false;
+  return dist(mouseX, mouseY, press.x, press.y) > 6 || millis() - press.time > 250;
 }
 
 function keyPressed() {
@@ -202,8 +279,9 @@ function keyPressed() {
     newWorld();
   } else if (key === 'r' || key === 'R') {
     newWorld(world.seed);
+  } else if (key === 'g' || key === 'G') {
+    world.mode = world.mode === 'flow' ? 'grid' : 'flow';
   } else if (key === ' ') {
-    if (world.frame >= DURATION) return false;  // already finished
     paused = !paused;
     paused ? noLoop() : loop();
     return false;                               // stop the page from scrolling
